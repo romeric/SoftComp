@@ -82,220 +82,131 @@ SC_INLINE vector<typename Derived::Scalar> col(Derived &&mat, integer idx) {
     return mat.col(idx);
 }
 
-// Spans
-//------------------------------------------------------------------------------------------------------------------
+// Spans/ Array views
+//-----------------------------------------------------------------------------------------------
 
-template<typename Derived, typename T>
-SC_INLINE matrix<typename Derived::Scalar> seq(const Derived &mat,
-                                               const std::array<T,3> &rows_,
-                                               const std::array<T,3> &cols_) {
+// #define all -101;
+// #define fin -102;
 
-    integer starting_row = rows_[0];
-    integer starting_col = cols_[0];
-    integer span_rows = (rows_[2]-starting_row)/rows_[1];
-    integer span_cols = (cols_[2]-starting_col)/cols_[1];
-    matrix<typename Derived::Scalar> out(span_rows,span_cols);
-    for (integer i=0; i<span_rows; ++i) {
-        for (integer j=0; j<span_cols; ++j) {
-            out(i,j) = mat(starting_row+i,starting_col+j);
-        }
-    }
+template<typename Derived, typename U>
+SC_INLINE auto seq(Derived &mat,
+                   std::initializer_list<U> &&  rows_,
+                   std::initializer_list<U> &&cols_)
+ -> typename Eigen::Map<matrix<typename Derived::Scalar>,Eigen::Unaligned,
+         Eigen::Stride<Eigen::Dynamic,Eigen::Dynamic>> {
+    /* Array slicing
+        A[0:5,0:5:2]  ---> seq(A,{0,5},{0,5,2})
+    */
+
+#ifndef NDEBUG
+    SC_ASSERT(rows_.size()<4 && cols_.size()<4, "INVALID INDEX FOR MATRIX");
+#endif
+
+
+    integer istride=1,ostride=1;
+    if (cols_.size()==3)
+        istride = *(cols_.begin()+2);
+    if (rows_.size()==3)
+        ostride = *(rows_.begin()+2);
+
+    integer starting_row = rows_.size()==0 ? 0 : *rows_.begin();
+    integer starting_col = cols_.size()==0 ? 0 : *cols_.begin();
+    integer end_row      = rows_.size()==0 ? mat.rows() : *(rows_.begin()+1);
+    integer end_col      = cols_.size()==0 ? mat.cols() : *(cols_.begin()+1);
+
+#ifndef NDEBUG
+    SC_ASSERT(starting_row>=0 && starting_col>=0, "NEGATIVE INDICES NOT ALLOWED");
+    SC_ASSERT(end_row<=size(mat,0) && end_col<=size(mat,1), "INDEX OUT OF RANGE");
+#endif
+    
+    integer span_rows = 0; for (auto i=starting_row; i<end_row; i+=ostride) span_rows++;
+    integer span_cols = 0; for (auto i=starting_col; i<end_col; i+=istride) span_cols++;
+
+    Eigen::Map<matrix<typename Derived::Scalar>,Eigen::Unaligned,
+            Eigen::Stride<Eigen::Dynamic,Eigen::Dynamic> > out(mat.data()+starting_row*mat.cols()+starting_col,
+                                                  span_rows, span_cols,
+                                                  Eigen::Stride<Eigen::Dynamic,
+                                                  Eigen::Dynamic>(ostride*mat.outerStride(),istride*mat.innerStride()));
+
     return out;
 }
 
 
-template<typename Derived, typename T>
-SC_INLINE matrix<typename Derived::Scalar> seq(const Derived &mat,
-                                               const vector<T> &rows_,
-                                               const vector<T> &cols_) {
+template<typename Derived, typename T, typename U>
+SC_INLINE auto seq(Derived &mat,
+                   T row,
+                   std::initializer_list<U> &&cols_)
+ -> typename Eigen::Map<matrix<typename Derived::Scalar>,Eigen::Unaligned,
+         Eigen::Stride<Eigen::Dynamic,Eigen::Dynamic>> {
+    /* Array slicing
+        A[5,0:5:2]  ---> seq(A,5,{0,5,2})
+    */
+#ifndef NDEBUG
+    SC_ASSERT(cols_.size()<4, "INVALID INDEX FOR MATRIX");
+#endif
 
-    matrix<typename Derived::Scalar> out(size(rows_),size(cols_));
-    for (integer i=0; i<size(rows_); ++i) {
-        for (integer j=0; j<size(cols_); ++j) {
-            out(i,j) = mat(rows_(i),cols_(j));
-        }
-    }
+    integer istride=1,ostride=1;
+    if (cols_.size()==3)
+        istride = *(cols_.begin()+2);
+
+    integer starting_row = row;
+    integer starting_col = cols_.size()==0 ? 0 : *cols_.begin();
+    integer end_row      = row+1;
+    integer end_col      = cols_.size()==0 ? mat.cols() : *(cols_.begin()+1);
+
+#ifndef NDEBUG
+    SC_ASSERT(end_row<=size(mat,0) && end_col<=size(mat,1), "INDEX OUT OF RANGE");
+#endif
+    
+    integer span_rows = 0; for (auto i=starting_row; i<end_row; i+=ostride) span_rows++;
+    integer span_cols = 0; for (auto i=starting_col; i<end_col; i+=istride) span_cols++;
+
+    Eigen::Map<matrix<typename Derived::Scalar>,Eigen::Unaligned,
+            Eigen::Stride<Eigen::Dynamic,Eigen::Dynamic> > out(mat.data()+starting_row*mat.cols()+starting_col,
+                                                  span_rows, span_cols,
+                                                  Eigen::Stride<Eigen::Dynamic,
+                                                  Eigen::Dynamic>(ostride*mat.outerStride(),istride*mat.innerStride()));
+
     return out;
 }
-
-
-//template<typename Derived0, typename Derived1>
-//SC_INLINE matrix<typename Derived::Scalar> seq(const Derived0 &mat,
-//                                               const Derived1 &mat_idx) {
-
-//    matrix<typename Derived::Scalar> out(rows(mat_idx0),cols(mat_idx1));
-//    for (integer i=0; i<rows(mat_idx0); ++i) {
-//        for (integer j=0; j<cols(mat_idx1); ++j) {
-//            out(i,j) = mat(mat_idx(i,j));
-//        }
-//    }
-//    return out;
-//}
-
-
-//template<typename Derived, typename T, typename U>
-//SC_INLINE auto seq(Derived &mat,
-//                   const vector<U> & rows_,
-//                   const vector<U> & cols_)
-// -> typename Eigen::Map<matrix<typename Derived::Scalar>,0,
-//         Eigen::Stride<Eigen::Dynamic,Eigen::Dynamic>> {
-
-//    SC_ASSERT(rows_.size()<4 && cols_.size()<4, "INVALID INDEX FOR MATRIX");
-
-//    integer istride=1,ostride=1;
-//    if (rows_.size()==3)
-//        istride = *(rows_.begin()+1);
-//    if (cols_.size()==3)
-//        ostride = *(cols_.begin()+1);
-
-//    integer starting_row = *rows_.begin();
-//    integer starting_col = *cols_.begin();
-//    integer span_rows, span_cols;
-//    if (rows_.size()==3)
-//        span_rows = (*(rows_.begin()+2)-starting_row)/istride;
-//    else
-//        span_rows = (*(rows_.begin()+1)-starting_row)/istride;
-//    if (cols_.size()==3)
-//        span_cols = (*(cols_.begin()+2)-starting_col)/ostride;
-//    else
-//        span_cols = (*(cols_.begin()+1)-starting_col)/ostride;
-
-//    Eigen::Map<matrix<typename Derived::Scalar>,0,
-//            Eigen::Stride<Eigen::Dynamic,Eigen::Dynamic> > out(mat.data()+starting_row*mat.cols()+starting_col,
-//                                                  span_rows, span_cols,
-//                                                  Eigen::Stride<Eigen::Dynamic,
-//                                                  Eigen::Dynamic>(ostride*mat.outerStride(),
-//                                                    istride*mat.innerStride()));
-
-//    return out;
-//}
-
-//template<typename Derived, typename T>
-//SC_INLINE matrix<typename Derived::Scalar> seq(const Derived &mat,
-//                                               const std::initializer_list<T> &rows_,
-//                                               const std::initializer_list<T> &cols_) {
-
-//    SC_ASSERT(rows_.size()<4 && cols_.size()<4, "INVALID INDEX FOR MATRIX");
-
-//    integer starting_row = *rows_.begin();
-//    integer starting_col = *cols_.begin();
-//    integer span_rows = (*(rows_.begin()+2)-starting_row);
-//    integer span_cols = (*(cols_.begin()+2)-starting_col);
-//    if (rows_.size()==3)
-//        span_rows /= *(rows_.begin()+1);
-//    if (cols_.size()==3)
-//        span_cols /= *(cols_.begin()+1);
-
-//    matrix<typename Derived::Scalar> out(span_rows,span_cols);
-//    for (integer i=0; i<span_rows; ++i) {
-//        for (integer j=0; j<span_cols; ++j) {
-//            out(i,j) = mat(starting_row+i,starting_col+j);
-//        }
-//    }
-
-//    return out;
-//}
 
 
 template<typename Derived, typename T, typename U>
 SC_INLINE auto seq(Derived &mat,
                    std::initializer_list<U> &&  rows_,
-                   std::initializer_list<U> &&cols_)
- -> typename Eigen::Map<matrix<typename Derived::Scalar>,0,
+                   T col)
+ -> typename Eigen::Map<matrix<typename Derived::Scalar>,Eigen::Unaligned,
          Eigen::Stride<Eigen::Dynamic,Eigen::Dynamic>> {
-
-    SC_ASSERT(rows_.size()<4 && cols_.size()<4, "INVALID INDEX FOR MATRIX");
+    /* Array slicing
+        A[0:5,3]  ---> seq(A,{0,5},3)
+    */
+#ifndef NDEBUG
+    SC_ASSERT(rows_.size()<4, "INVALID INDEX FOR MATRIX");
+#endif
 
     integer istride=1,ostride=1;
     if (rows_.size()==3)
-        istride = *(rows_.begin()+1);
-    if (cols_.size()==3)
-        ostride = *(cols_.begin()+1);
+        ostride = *(rows_.begin()+2);
 
-    integer starting_row = *rows_.begin();
-    integer starting_col = *cols_.begin();
-    integer span_rows, span_cols;
-    if (rows_.size()==3)
-        span_rows = (*(rows_.begin()+2)-starting_row)/istride;
-    else
-        span_rows = (*(rows_.begin()+1)-starting_row)/istride;
-    if (cols_.size()==3)
-        span_cols = (*(cols_.begin()+2)-starting_col)/ostride;
-    else
-        span_cols = (*(cols_.begin()+1)-starting_col)/ostride;
+    integer starting_row = rows_.size()==0 ? 0 : *rows_.begin();
+    integer starting_col = col;
+    integer end_row      = rows_.size()==0 ? mat.rows() : *(rows_.begin()+1);
+    integer end_col      = col+1;
 
-    Eigen::Map<matrix<typename Derived::Scalar>,0,
+#ifndef NDEBUG
+    SC_ASSERT(end_row<=size(mat,0) && end_col<=size(mat,1), "INDEX OUT OF RANGE");
+#endif
+    
+    integer span_rows = 0; for (auto i=starting_row; i<end_row; i+=ostride) span_rows++;
+    integer span_cols = 0; for (auto i=starting_col; i<end_col; i+=istride) span_cols++;
+
+    Eigen::Map<matrix<typename Derived::Scalar>,Eigen::Unaligned,
             Eigen::Stride<Eigen::Dynamic,Eigen::Dynamic> > out(mat.data()+starting_row*mat.cols()+starting_col,
                                                   span_rows, span_cols,
                                                   Eigen::Stride<Eigen::Dynamic,
-                                                  Eigen::Dynamic>(ostride*mat.outerStride(),
-                                                    istride*mat.innerStride()));
+                                                  Eigen::Dynamic>(ostride*mat.outerStride(),istride*mat.innerStride()));
 
     return out;
-}
-
-
-template<typename Derived, typename T, typename U>
-SC_INLINE auto seq(Derived &mat,
-                  T idx,
-                  std::initializer_list<U> &&cols_)
--> typename Eigen::Map<matrix<typename Derived::Scalar>,0,
-        Eigen::Stride<Eigen::Dynamic,Eigen::Dynamic>> {
-
-   SC_ASSERT(cols_.size()<4, "INVALID INDEX FOR MATRIX");
-
-   integer istride=1,ostride=1;
-   if (cols_.size()==3)
-       ostride = *(cols_.begin()+1);
-
-   integer starting_row = idx;
-   integer starting_col = *cols_.begin();
-   integer span_rows = 1, span_cols;
-   if (cols_.size()==3)
-      span_cols = (*(cols_.begin()+2)-starting_col)/ostride;
-   else
-      span_cols = (*(cols_.begin()+1)-starting_col)/ostride;
-
-   Eigen::Map<matrix<typename Derived::Scalar>,0,
-           Eigen::Stride<Eigen::Dynamic,Eigen::Dynamic>> out(mat.data()+starting_row*mat.cols()+starting_col,
-                                                 span_rows, span_cols,
-                                                 Eigen::Stride<Eigen::Dynamic,
-                                                 Eigen::Dynamic>(ostride*mat.outerStride(),
-                                                   istride*mat.innerStride()));
-
-   return out;
-}
-
-
-template<typename Derived, typename T, typename U>
-SC_INLINE auto seq(Derived &mat,
-                 std::initializer_list<U> &&rows_,
-                 T idx)
--> typename Eigen::Map<matrix<typename Derived::Scalar>,0,
-       Eigen::Stride<Eigen::Dynamic,Eigen::Dynamic>> {
-
-  SC_ASSERT(rows_.size()<4, "INVALID INDEX FOR MATRIX");
-
-  integer istride=1,ostride=1;
-  if (rows_.size()==3)
-      istride = *(rows_.begin()+1);
-
-  integer starting_row = *rows_.begin();
-  integer starting_col = idx;
-  integer span_rows, span_cols=1;
-  if (rows_.size()==3)
-      span_rows = (*(rows_.begin()+2)-starting_row)/istride;
-  else
-      span_rows = (*(rows_.begin()+1)-starting_row)/istride;
-
-  Eigen::Map<matrix<typename Derived::Scalar>,0,
-          Eigen::Stride<Eigen::Dynamic,Eigen::Dynamic> > out(mat.data()+starting_row*mat.cols()+starting_col,
-                                                span_rows, span_cols,
-                                                Eigen::Stride<Eigen::Dynamic,
-                                                Eigen::Dynamic>(ostride*mat.outerStride(),
-                                                  istride*mat.innerStride()));
-
-  return out;
 }
 
 
@@ -821,6 +732,20 @@ template<typename Derived>
 SC_INLINE matrix<typename Derived::Scalar> abs(const Eigen::MatrixBase<Derived> &mat) {
     return mat.array().abs();
 }
+template<typename Derived>
+SC_INLINE typename Derived::Scalar sum(const Eigen::DenseBase<Derived> &mat) {
+    return mat.sum();
+}
+template<typename Derived>
+SC_INLINE vector<typename Derived::Scalar> sum(const Eigen::DenseBase<Derived> &mat, integer axis) {
+    if (axis==0) return mat.rowwise().sum();
+    else if (axis==1) return mat.colwise().sum();
+    else {
+      SC_ASSERT(false,"AXIS ARGUMENT SHOULD BE EITHER 0 OR 1");
+      return vector<typename Derived::Scalar>{};
+    }
+}
+
 template<typename Derived, typename T,
          typename std::enable_if<std::is_arithmetic<T>::value,bool>::type=0>
 SC_INLINE matrix<typename Derived::Scalar> pow(const Eigen::MatrixBase<Derived> &mat, T num) {
@@ -1010,12 +935,29 @@ SC_INLINE auto diag(Eigen::MatrixBase<Derived> &&mat) -> decltype(mat.diagonal()
 
 template<typename Derived>
 SC_INLINE typename Derived::Scalar norm(const Eigen::MatrixBase<Derived> &mat) {
-    return mat.squaredNorm();
+    return mat.stableNorm();
 }
 template<typename Derived>
 SC_INLINE typename Derived::Scalar norm(Eigen::MatrixBase<Derived> &&mat) {
-    return mat.squaredNorm();
+    return mat.stableNorm();
 }
+// template<typename Derived>
+// SC_INLINE typename Derived::Scalar norm(const Eigen::PlainObjectBase<Derived> &mat) {
+//     return std::sqrt(std::inner_product(mat.data(),mat.data()+size(mat),mat.data(),0));
+// }
+// template<typename Derived>
+// SC_INLINE typename Derived::Scalar norm(Eigen::PlainObjectBase<Derived> &&mat) {
+//     return std::sqrt(std::inner_product(mat.data(),mat.data()+size(mat),mat.data(),0));
+// }
+// template<typename Derived>
+// SC_INLINE typename Derived::Scalar norm(const Eigen::PlainObjectBase<Derived> &mat) {
+//     real norm           =  0.;
+//     for (auto i=0; i<size(mat); i++){
+//         real  cur        =  mat.data()[i];
+//         norm            +=  cur*cur;
+//     }
+//     return  sqrt(norm);
+// }
 
 template<typename Derived0, typename Derived1>
 SC_INLINE auto matmul(const Eigen::MatrixBase<Derived0> &mat0,
@@ -1044,7 +986,335 @@ SC_INLINE matrix<T> solve(const matrix<T> &mat, const Eigen::MatrixBase<Derived1
 //    return Eigen::LDLT<Eigen::EigenBase<Derived0>>(mat);//.solve(vec);
 //}
 
+
+static spmatrix<real> block_sparse_extractor(const integer *arr, integer free_size, integer total) {
+    vector<integer> I(free_size), J(free_size);
+//    for (auto ifree=0; ifree<free_size; ++ifree) {
+//        I[ifree] = ifree;
+//        J[ifree] = arr[ifree];
+//        V[ifree] = 1;
+//    }
+
+//    vector<integer> I = arange<integer>(free_size);
+//    vector<real>    V = ones(free_size);
+    spmatrix<real> b_ones(free_size, total);
+
+    using T = Eigen::Triplet<real>;
+    std::vector<T> triplets;
+    triplets.reserve(free_size);
+
+    for (auto ifree=0; ifree<free_size; ++ifree) {
+        triplets.push_back(T(ifree,arr[ifree],1.));
+    }
+
+    b_ones.setFromTriplets(triplets.begin(),triplets.end());
+    return b_ones;
+//    spmatrix<real>
 }
+
+
+//
+template<class ForwardIt, class T>
+inline ForwardIt binary_find(ForwardIt first, ForwardIt last, const T& value, std::less<int> comp={}) {
+    first = std::lower_bound(first, last, value, comp);
+    return first != last && !comp(value, *first) ? first : last;
+}
+
+template<typename T>
+SC_INLINE int interpolation_search(const T *__restrict__ arr, int len, int key) {
+    using int64 = long long int;
+
+    int low = 0;
+    int high = len - 1;
+    int mid;
+
+    int l = arr[low];
+    int h = arr[high];
+
+    while (l <= key && h >= key) {
+        int64 high_low = (high - low);
+        int64 key_l = (key - l);
+        int64 product = high_low*key_l;
+        int64 h_l = h-l;
+        int64 step = product / h_l;
+        mid = low + step;
+
+        int m = arr[mid];
+
+        if (m < key) {
+            l = arr[low = mid + 1];
+        } else if (m > key) {
+            h = arr[high = mid - 1];
+        } else {
+            return mid;
+        }
+    }
+
+    if (arr[low] == key)
+        return low;
+    else
+        return len;
+}
+
+
+template<typename T>
+spmatrix<T> 
+seqNC(const spmatrix<T> &a, const std::vector<int> &krows, const std::vector<int> &kcols) {
+
+#ifndef NDEBUG 
+    assert(std::is_sorted(kcols.begin(),kcols.end()) && "ACCESSOR DATA MUST BE SORTED");
+#endif
+
+    const T   *__restrict__   valptr = a.valuePtr();
+    const int *__restrict__ inptr    = a.innerIndexPtr();
+    const int *__restrict__ outptr   = a.outerIndexPtr();
+    int nnz                          = a.nonZeros();
+
+    const int *keep_rows             = krows.data();
+    const int *keep_cols             = kcols.data();
+    int size_keep_rows               = krows.size();
+    int size_keep_cols               = kcols.size();
+
+    std::vector<int> o_inptr; std::vector<T> o_valptr;
+    o_inptr.reserve(nnz); o_valptr.reserve(nnz);
+    std::vector<int> o_outptr(size_keep_rows+1);
+    o_outptr[0] = 0;
+
+    const auto keep_cols_0 = keep_cols[0];
+    const auto keep_cols_f = keep_cols[size_keep_cols-1];
+
+    auto counter = 0;
+    for (auto i=0; i<size_keep_rows; ++i) {
+        const auto idx = keep_rows[i];
+        auto out_start = outptr[idx];
+        auto out_end = outptr[idx+1];  if (idx == a.rows() - 1) out_end = nnz;  
+        for (auto j=out_start; j<out_end && inptr[j]<=keep_cols_f; ++j) {       
+            if (inptr[j]>=keep_cols_0) {
+                // const auto idx_into_keep_cols = binary_find(keep_cols,keep_cols+size_keep_cols,inptr[j]) - keep_cols;
+                const auto idx_into_keep_cols = interpolation_search(keep_cols,size_keep_cols,inptr[j]); // 2x faster than simple binary search
+                if (idx_into_keep_cols != size_keep_cols) {
+                    o_inptr.push_back(keep_cols[idx_into_keep_cols] - keep_cols_0);
+                    o_valptr.push_back(valptr[j]);
+                    counter++;
+                }
+            }
+        }
+        o_outptr[i+1] = counter;
+    }
+
+    return Eigen::Map<spmatrix<T>>(size_keep_rows, size_keep_cols, 
+        counter, o_outptr.data(), o_inptr.data(), o_valptr.data(),0);
+}
+
+
+template<typename T>
+spmatrix<T> 
+seqNC(const spmatrix<T> &a, const vector<integer> &krows, const vector<integer> &kcols) {
+
+#ifndef NDEBUG 
+    assert(std::is_sorted(kcols.data(),kcols.data()+size(kcols)) && "ACCESSOR DATA MUST BE SORTED");
+#endif
+
+    const T   *__restrict__   valptr = a.valuePtr();
+    const int *__restrict__ inptr    = a.innerIndexPtr();
+    const int *__restrict__ outptr   = a.outerIndexPtr();
+    int nnz                          = a.nonZeros();
+
+    const integer *keep_rows             = krows.data();
+    const integer *keep_cols             = kcols.data();
+    int size_keep_rows               = size(krows);
+    int size_keep_cols               = size(kcols);
+
+    std::vector<int> o_inptr; std::vector<T> o_valptr;
+    o_inptr.reserve(nnz); o_valptr.reserve(nnz);
+    std::vector<int> o_outptr(size_keep_rows+1);
+    o_outptr[0] = 0;
+
+    const auto keep_cols_0 = keep_cols[0];
+    const auto keep_cols_f = keep_cols[size_keep_cols-1];
+
+    auto counter = 0;
+    for (auto i=0; i<size_keep_rows; ++i) {
+        const auto idx = keep_rows[i];
+        auto out_start = outptr[idx];
+        auto out_end = outptr[idx+1];  if (idx == a.rows() - 1) out_end = nnz;  
+        for (auto j=out_start; j<out_end && inptr[j]<=keep_cols_f; ++j) {       
+            if (inptr[j]>=keep_cols_0) {
+                // const auto idx_into_keep_cols = binary_find(keep_cols,keep_cols+size_keep_cols,inptr[j]) - keep_cols;
+                const auto idx_into_keep_cols = interpolation_search(keep_cols,size_keep_cols,inptr[j]); // 2x faster than simple binary search
+                if (idx_into_keep_cols != size_keep_cols) {
+                    o_inptr.push_back(keep_cols[idx_into_keep_cols] - keep_cols_0);
+                    o_valptr.push_back(valptr[j]);
+                    counter++;
+                }
+            }
+        }
+        o_outptr[i+1] = counter;
+    }
+
+    return Eigen::Map<spmatrix<T>>(size_keep_rows, size_keep_cols, 
+        counter, o_outptr.data(), o_inptr.data(), o_valptr.data(),0);
+}
+
+
+template<typename T>
+spmatrix<T> 
+seqNC(const spmatrix<T> &a, const std::vector<int> &krows) {
+
+    std::vector<int> kcols(a.cols()); 
+    std::iota(kcols.begin(),kcols.end(),0);
+
+#ifndef NDEBUG 
+    assert(std::is_sorted(kcols.begin(),kcols.end()) && "ACCESSOR DATA MUST BE SORTED");
+#endif
+
+    const T   *__restrict__   valptr = a.valuePtr();
+    const int *__restrict__ inptr    = a.innerIndexPtr();
+    const int *__restrict__ outptr   = a.outerIndexPtr();
+    int nnz                          = a.nonZeros();
+
+    const int *keep_rows             = krows.data();
+    const int *keep_cols             = kcols.data();
+    int size_keep_rows               = krows.size();
+    int size_keep_cols               = kcols.size();
+
+    std::vector<int> o_inptr; std::vector<T> o_valptr;
+    o_inptr.reserve(nnz); o_valptr.reserve(nnz);
+    std::vector<int> o_outptr(size_keep_rows+1);
+    o_outptr[0] = 0;
+
+    const auto keep_cols_0 = keep_cols[0];
+    const auto keep_cols_f = keep_cols[size_keep_cols-1];
+
+    auto counter = 0;
+    for (auto i=0; i<size_keep_rows; ++i) {
+        const auto idx = keep_rows[i];
+        auto out_start = outptr[idx];
+        auto out_end = outptr[idx+1];  if (idx == a.rows() - 1) out_end = nnz;  
+        for (auto j=out_start; j<out_end && inptr[j]<=keep_cols_f; ++j) {       
+            if (inptr[j]>=keep_cols_0) {
+                // const auto idx_into_keep_cols = binary_find(keep_cols,keep_cols+size_keep_cols,inptr[j]) - keep_cols;
+                const auto idx_into_keep_cols = interpolation_search(keep_cols,size_keep_cols,inptr[j]); // 2x faster than simple binary search
+                if (idx_into_keep_cols != size_keep_cols) {
+                    o_inptr.push_back(keep_cols[idx_into_keep_cols] - keep_cols_0);
+                    o_valptr.push_back(valptr[j]);
+                    counter++;
+                }
+            }
+        }
+        o_outptr[i+1] = counter;
+    }
+
+    return Eigen::Map<spmatrix<T>>(size_keep_rows, size_keep_cols, 
+        counter, o_outptr.data(), o_inptr.data(), o_valptr.data(),0);
+}
+
+
+template<typename T>
+spmatrix<T> 
+seqNC(const spmatrix<T> &a, const integer *keep_rows, integer size_keep_rows) {
+
+    std::vector<int> kcols(a.cols()); 
+    std::iota(kcols.begin(),kcols.end(),0);
+
+#ifndef NDEBUG 
+    assert(std::is_sorted(kcols.begin(),kcols.end()) && "ACCESSOR DATA MUST BE SORTED");
+#endif
+
+    const T   *__restrict__   valptr = a.valuePtr();
+    const int *__restrict__ inptr    = a.innerIndexPtr();
+    const int *__restrict__ outptr   = a.outerIndexPtr();
+    int nnz                          = a.nonZeros();
+
+    const int *keep_cols             = kcols.data();
+    int size_keep_cols               = kcols.size();
+
+    std::vector<int> o_inptr; std::vector<T> o_valptr;
+    o_inptr.reserve(nnz); o_valptr.reserve(nnz);
+    std::vector<int> o_outptr(size_keep_rows+1);
+    o_outptr[0] = 0;
+
+    const auto keep_cols_0 = keep_cols[0];
+    const auto keep_cols_f = keep_cols[size_keep_cols-1];
+
+    auto counter = 0;
+    for (auto i=0; i<size_keep_rows; ++i) {
+        const auto idx = keep_rows[i];
+        auto out_start = outptr[idx];
+        auto out_end = outptr[idx+1];  if (idx == a.rows() - 1) out_end = nnz;  
+        for (auto j=out_start; j<out_end && inptr[j]<=keep_cols_f; ++j) {       
+            if (inptr[j]>=keep_cols_0) {
+                // const auto idx_into_keep_cols = binary_find(keep_cols,keep_cols+size_keep_cols,inptr[j]) - keep_cols;
+                const auto idx_into_keep_cols = interpolation_search(keep_cols,size_keep_cols,inptr[j]); // 2x faster than simple binary search
+                if (idx_into_keep_cols != size_keep_cols) {
+                    o_inptr.push_back(keep_cols[idx_into_keep_cols] - keep_cols_0);
+                    o_valptr.push_back(valptr[j]);
+                    counter++;
+                }
+            }
+        }
+        o_outptr[i+1] = counter;
+    }
+
+    return Eigen::Map<spmatrix<T>>(size_keep_rows, size_keep_cols, 
+        counter, o_outptr.data(), o_inptr.data(), o_valptr.data(),0);
+}
+
+
+
+
+
+template<typename T, typename Derived>
+SC_INLINE vector<T> spsolve(const spmatrix<T> &A, const Derived &b, T scale=1.0) {
+
+    // // Scale global matrices
+ //    Eigen::IterScaling<spmatrix<real>> scale;
+ //    // Compute the left and right scaling vectors. The matrix is equilibrated at output
+ //    scale.computeRef(A);
+ //    // Scale the right hand side
+ //    b = scale.LeftScaling().cwiseProduct(b);
+
+    // Solve
+    // Eigen::ConjugateGradient<spmatrix<real>> solver;
+    Eigen::SparseLU<spmatrix<T>> solver;
+    // Compute the ordering permutation vector from the structural pattern of A
+    solver.analyzePattern(A);
+    // Compute the numerical factorization
+    solver.factorize(A);
+    // Use the factors to solve the linear system
+    auto sol = solver.solve(b);
+
+    return sol;
+
+    // Scale back the computed solution
+    // sol = scale.RightScaling().cwiseProduct(sol);
+
+// #include <unsupported/Eigen/src/IterativeSolvers/Scaling.h>
+// #include <Eigen/IterativeLinearSolvers>
+// #include <Eigen/SparseCholesky>
+// #include <Eigen/UmfPackSupport>
+
+                //     Eigen::SparseLU<spmatrix<real>> solver;
+                // // Eigen::UmfPackLU<spmatrix<real>> solver(reducedmatrix);
+                // // Eigen::BiCGSTAB<spmatrix<real>> solver;
+                // // Eigen::SimplicialLDLT<spmatrix<real>> solver;
+                // // Eigen::SimplicialLLT<spmatrix<real>> solver;
+                // // Compute the ordering permutation vector from the structural pattern of A
+                // solver.analyzePattern(reducedmatrix);
+                // // Compute the numerical factorization
+                // solver.factorize(reducedmatrix);
+                // // Use the factors to solve the linear system
+                // // auto sol = solver.solve(-reducedresidual);
+                // vector<real> sol = solver.solve(-reducedresidual);
+                // // std::cout << "#iterations:     " << solver.iterations() << std::endl;
+                // // std::cout << "estimated error: " << solver.error()      << std::endl;
+
+
+}
+
+
+
+} // end of namespace SoftComp
 
 
 #endif

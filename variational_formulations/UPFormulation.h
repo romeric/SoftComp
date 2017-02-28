@@ -1,14 +1,16 @@
-#ifndef DISPLACEMENTFORMULATION_H
-#define DISPLACEMENTFORMULATION_H
+#ifndef UPFORMULATION_H
+#define UPFORMULATION_H
+
 
 #include "VariationalFormulation.h"
+#include "backends/matrix_backends/backend_constitutivetensors.h"
 
 
 namespace SoftComp {
 
 
 template<class MaterialType>
-class DisplacementFormulation : public VariationalFormulation<MaterialType> {
+class UPFormulation : public VariationalFormulation<MaterialType> {
 public:
     tensor<real,2> local_internal_traction;
     tensor<real,4> local_stiffness;
@@ -19,20 +21,21 @@ public:
     //boolean is_quadrature_computed;
     //boolean is_function_space_computed;
     std::vector<integer> global_dofs;
-    FunctionSpace function_space;
+    FunctionSpace function_space, function_space_p;
     std::vector<integer> global_I_elem, global_J_elem;
     MaterialType material;
 
-     DisplacementFormulation(const string element_type, integer degree) {
+    UPFormulation(const string element_type, integer degree, integer degree_p) {
          //----------------------------------------------------
-         // Get functional space
+         // Get functional spaces
          //----------------------------------------------------
-         function_space = FunctionSpace(element_type,degree);
+         function_space    =  FunctionSpace(element_type,degree);
+         function_space_p  =  FunctionSpace(element_type,degree_p);
      }
 
 
     template<typename Formulation>
-    SC_INLINE void GetGaussInfoInternalContribution(const Mesh &mesh, const MaterialType &mat, 
+    SC_INLINE void GetGaussInfoInternalContribution(const Mesh &mesh, const MaterialType &mat,
         const SolutionFields<Formulation> & fields, integer ielement) {
          nvar = mesh.ndim;
         //----------------------------------------------------
@@ -40,6 +43,7 @@ public:
         //----------------------------------------------------
         tensor<real,2>  Xelement(mesh.nodeperelem,mesh.ndim);
         tensor<real,2>  xelement(mesh.nodeperelem,mesh.ndim);
+        tensor<real,1>  pelement();   // Get the pressure
         for (auto inode=0; inode<mesh.nodeperelem;  inode++){
             for (auto jdim=0; jdim<mesh.ndim; jdim++){
                 Xelement(inode,jdim)      =  mesh.points(mesh.elements(ielement,inode),jdim);
@@ -58,6 +62,7 @@ public:
         material.ComputeHessianComponents(kin);
         material.FirstPiola(kin);
         material.Hessian(kin);
+        // Get geometrical term associated with the pressure!!!
     }
 
       void LocalResidualInternalContribution() {
@@ -110,7 +115,7 @@ public:
         }
         //----------------------------------------------------
         // Permutation of 2nd and 3rd components of local stiffness
-        // Very inefficient -- This needs to be permuated in-place instead of making a copy 
+        // Very inefficient -- This needs to be permuated in-place instead of making a copy
         //----------------------------------------------------
         for (auto anode=0;anode<nodeperelem;anode++){
             for (auto idim=0;idim<ndim;idim++){
@@ -181,7 +186,7 @@ public:
         //---------------------------------------------------
         // Initialise
         //---------------------------------------------------
-        auto nodeperelem     =  size(kin.material_gradient,1);
+        auto nodeperelem     =  kin.material_gradient.dimension(1);
         auto local_capacity  =  nvar*nodeperelem*nvar*nodeperelem;
         //---------------------------------------------------
         // Find the global degrees of freedom for the nodes of the current element
@@ -269,7 +274,7 @@ public:
             }
         }
         // Total number of dofs for this specific formulation
-        n_dofs_formulation     =  size(x);
+        n_dofs_formulation     =  size(x,0)*size(x,1);
     }
     void UpdateUnconstrainedSolutionFields(const Mesh &mesh,const BoundaryCondition &boundary_condition, const vector<real> &Dx){
         //-------------------------------------------------------------------------------
@@ -284,8 +289,7 @@ public:
         // Update the Solution Field x for degrees of freedom with imposed Dirichlet bc's
         //-------------------------------------------------------------------------------
         for (auto ifixed=0; ifixed<boundary_condition.n_fixed_dofs; ifixed++){
-            x.data()[boundary_condition.dirichlet_fixed_dofs(ifixed)] = mesh.points.data()[ifixed] + \
-                    accumulated_load_factor*boundary_condition.dirichlet_values(ifixed);
+            x.data()[boundary_condition.dirichlet_fixed_dofs(ifixed)] = mesh.points.data()[ifixed] + accumulated_load_factor*boundary_condition.dirichlet_values(ifixed);
         }
     }
     tensor<real,1> operator-(const SolutionFields<DisplacementFormulation<MaterialType>> &oldfield){
@@ -306,5 +310,3 @@ public:
 
 
 }
-
-#endif // DISPLACEMENTFORMULATION_H

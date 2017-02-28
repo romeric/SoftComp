@@ -204,19 +204,22 @@ inline std::tuple<double,uint64_t> rtimeit(T (*func)(Params...), Args...args)
 }
 
 // tic toc
-template <typename T>
+template<typename T=double>
 struct timer
 {
-    void tic() {t0 = std::chrono::high_resolution_clock::now();}
+    SC_INLINE void tic() {t0 = std::chrono::high_resolution_clock::now();}
 
-    T toc() {
+    SC_INLINE T toc(const std::string &msg="") {
         using namespace std::chrono;
         elapsed = high_resolution_clock::now() - t0;
-        return duration<T,seconds::period>(elapsed).count();
+        T elapsed_seconds = duration<T,seconds::period>(elapsed).count();
+        if (msg.empty()) println("Elapsed time is:",elapsed_seconds, "seconds \n");
+        else println(msg, elapsed_seconds, "seconds \n");
+        return elapsed_seconds;
     }
 
     std::chrono::high_resolution_clock::time_point t0;
-    std::chrono::high_resolution_clock::duration   elapsed;
+    std::chrono::high_resolution_clock::duration elapsed;
 };
 
 

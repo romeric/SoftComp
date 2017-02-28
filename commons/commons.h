@@ -183,7 +183,7 @@ using vector = arma::Col<T>;
 
 #endif
 
-
+#ifndef NDEBUG
 void SC_ASSERT(boolean cond, const string &x) {
     if (cond==true) {
         return;
@@ -193,6 +193,9 @@ void SC_ASSERT(boolean cond, const string &x) {
         exit(EXIT_FAILURE);
     }
 }
+#else
+void SC_ASSERT(boolean, const string &) {}
+#endif
 
 #define SC_STATIC_ASSERT(cond, msg) static_assert(cond,msg);
 

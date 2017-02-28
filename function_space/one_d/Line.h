@@ -106,6 +106,42 @@ public:
         }
     }
 
+    SC_INLINE void Compute(integer C, real zeta, real eta, boolean equally_spaced=false, boolean arrange=true) {
+
+        // Allocate
+        auto nsize = (C+2)*(C+2);
+        bases = zeros(nsize);
+        grad_bases = zeros(nsize,2);
+        // Compute bases
+        auto line_func_zeta = Line(C, zeta, equally_spaced);
+        auto line_func_eta  = Line(C, eta, equally_spaced);
+        auto &Nzeta = line_func_zeta.bases;
+        auto &Neta = line_func_eta.bases;
+        // Compute gradient of bases functions
+        auto &gNzeta = line_func_zeta.grad_bases;
+        auto &gNeta = line_func_eta.grad_bases;
+
+        // Don't pass directly product expressions to functions receiving eigen generic expressions
+        vector<real> dum1 = flatten(outer(Neta,Nzeta));
+        vector<real> dum4 = flatten(outer(gNeta,Nzeta));
+        vector<real> dum5 = flatten(outer(Neta,gNzeta));
+        // Ternsorial product
+        if (arrange==1) {
+            auto node_arranger = NodalArrangement("quad",C+1);
+
+            for (auto i=0; i< size(bases); ++i) {
+                bases(i) = dum1(node_arranger.element_arrangement(i));
+                grad_bases(i,0) = dum4(node_arranger.element_arrangement(i));
+                grad_bases(i,1) = dum5(node_arranger.element_arrangement(i));
+            }
+        }
+        else {
+            bases.head(nsize) = dum1;
+            grad_bases.col(0) = dum4;
+            grad_bases.col(1) = dum5;
+        }
+    }
+
 };
 
 }

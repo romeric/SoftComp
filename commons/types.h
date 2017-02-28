@@ -34,4 +34,10 @@ std::string type_name()
 }
 
 
+template<typename T>
+inline auto typeof(T) -> decltype(type_name<T>()) {
+   return type_name<T>();
+}
+
+
 }

@@ -136,6 +136,82 @@ public:
         return p;
     }
 
+    void Rectangle(real Lx, real Ly, integer Nx, integer Ny, integer deg, string etype="quad") {
+        //--------------------------------------------
+        // Generate the points of the mesh
+        //--------------------------------------------
+
+        if (etype!="quad") {
+            println("Generating mesh for ", etype, " not yet implemented");
+            return;
+        }
+
+        real Dx                        =  Lx/(Nx*deg);
+        real Dy                        =  Ly/(Ny*deg);
+        vector<real> XX                =  zeros(Nx*deg+1);
+        vector<real> YY                =  zeros(Ny*deg+1);
+        for (auto ix=1; ix<Nx*deg+1; ix++){
+            XX(ix)                     =  XX(ix-1) + Dx;
+        }
+        for (auto iy=1; iy<Ny*deg+1; iy++){
+            YY(iy)                     =  YY(iy-1) + Dy;
+        }
+        integer npoints                =  (Nx*deg + 1)*(Ny*deg + 1);
+        integer ndim                   =  2;
+        integer dummy                  =  0;
+        points                         =  zeros(npoints,ndim);
+        for (auto iy=0; iy<Ny*deg+1;  iy++){
+            for (auto ix=0; ix<Nx*deg+1; ix++){
+                points(dummy,0)        =  XX(ix);
+                points(dummy,1)        =  YY(iy);
+                dummy++;
+            }
+        }
+
+        //--------------------------------------------
+        // Generate the connectivity of the mesh
+        //--------------------------------------------
+        elements = matrix<integer>(Nx*Ny,(deg+1)*(deg+1));
+        if (deg==0){
+        }
+        if (deg==1){
+           integer ielem              =  0;
+           for (auto iy=0; iy<Ny; iy++){
+               for (auto ix=0; ix<Nx; ix++){
+                   elements(ielem,0)  =  ix + 0 + iy*(Nx + 1);
+                   elements(ielem,1)  =  ix + 1 + iy*(Nx + 1);
+                   elements(ielem,3)  =  ix + 0 + (iy + 1)*(Nx + 1);
+                   elements(ielem,2)  =  ix + 1 + (iy + 1)*(Nx + 1);
+                   ielem++;
+               }
+           }
+        }
+        if (deg==2){
+            integer ielem              =  0;
+            for (auto iy=0; iy<Ny; iy++){
+                for (auto ix=0; ix<Nx; ix++){
+                    elements(ielem,0)  =  ix + 0 + (Nx*deg + 1)*0 + ix*(deg - 1) + iy*(Nx*deg+1)*deg;
+                    elements(ielem,4)  =  ix + 1 + (Nx*deg + 1)*0 + ix*(deg - 1) + iy*(Nx*deg+1)*deg;
+                    elements(ielem,1)  =  ix + 2 + (Nx*deg + 1)*0 + ix*(deg - 1) + iy*(Nx*deg+1)*deg;
+                    elements(ielem,7)  =  ix + 0 + (Nx*deg + 1)*1 + ix*(deg - 1) + iy*(Nx*deg+1)*deg;
+                    elements(ielem,8)  =  ix + 1 + (Nx*deg + 1)*1 + ix*(deg - 1) + iy*(Nx*deg+1)*deg;
+                    elements(ielem,5)  =  ix + 2 + (Nx*deg + 1)*1 + ix*(deg - 1) + iy*(Nx*deg+1)*deg;
+                    elements(ielem,3)  =  ix + 0 + (Nx*deg + 1)*2 + ix*(deg - 1) + iy*(Nx*deg+1)*deg;
+                    elements(ielem,6)  =  ix + 1 + (Nx*deg + 1)*2 + ix*(deg - 1) + iy*(Nx*deg+1)*deg;
+                    elements(ielem,2)  =  ix + 2 + (Nx*deg + 1)*2 + ix*(deg - 1) + iy*(Nx*deg+1)*deg;
+                    ielem++;
+                }
+            }
+        }
+
+        element_type          =  etype;
+        degree                =  deg;
+        nnode                 =  size(points,0);
+        nodeperelem           =  size(elements,1);
+        nelem                 =  size(elements,0);
+
+}
+
 };
 
 

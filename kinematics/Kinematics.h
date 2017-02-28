@@ -1,112 +1,59 @@
 #ifndef KINEMATICS_H
 #define KINEMATICS_H
 
-// #include "function_space/one_d/Line.h"
+#include "backends/matrix_backends/backend_tensor.h"
 #include "backends/matrix_backends/matrix_backend.h"
 
 
-#if defined(HAS_EIGEN)
-#include <unsupported/Eigen/CXX11/Tensor>
-template<typename T, integer rank>
-using tensor = Eigen::Tensor<T, rank, Eigen::RowMajor>;
-#endif
-
 namespace SoftComp {
 
-
-
-
 class Kinematics {
-//    using namespace Fastor;
+    /*-------------------------------------------------------------------
+     * ------------------------------------------------------------------
+     * ------------------------------------------------------------------
+    Kinematics class responsible for computing all kinematics quantity
+    * -------------------------------------------------------------------
+    * -------------------------------------------------------------------
+    * -------------------------------------------------------------------
+    */
 public:
     tensor<real,3> F, H;
     tensor<real,1> J, material_iso_jacobian;
-    tensor<real,3> material_gradient;
+    tensor<real,3> material_gradient, inv_dX_chi;
     tensor<real,3> C, b;
 
-    Kinematics() = delete;
+    Kinematics() = default;
 
-    Kinematics(const matrix<real> &X, const matrix<real> &x, const tensor<real,3> &grad_bases) {
+    Kinematics(const tensor<real,2> &X, const tensor<real,2> &x, const tensor<real,3> &grad_bases) {
+        auto ngauss                =  size(grad_bases,0);
+        auto ndim                  =  size(X,1);
+        auto nodeperelem           =  size(X,0);
+        //------------------------------------------
+        //  Material gradient of shape functions
+        //------------------------------------------
+        material_gradient          =  tensor<real,3>(ngauss,nodeperelem,ndim);
+        F                          =  tensor<real,3>(ngauss,ndim,ndim);
+        H                          =  tensor<real,3>(ngauss,ndim,ndim);
+        J                          =  tensor<real,1>(ngauss);
+        material_iso_jacobian      =  tensor<real,1>(ngauss);
+        inv_dX_chi                 =  tensor<real,3>(ngauss,ndim,ndim);
 
-
-        auto ngauss = grad_bases.dimension(2);
-        auto ndim = size(X,1);
-        auto nodeperelem = size(X,0);
-
-        matrix<real> parent_gradient = zeros(ndim,ndim);
-        material_iso_jacobian = tensor<real,1>(ngauss);
-        for (integer igauss=0; igauss<ngauss; ++igauss) {
-
-            for (auto i=0; i<nodeperelem; ++i) {
-                for (auto j=0; j<ndim; ++j) {
-                    for (auto k=0; k<ndim; ++k) {
-                        parent_gradient(j,k) += X(i,j)*grad_bases(i,k,igauss);
-                    }
-                }
-            }
-            material_iso_jacobian(igauss) = abs(det(parent_gradient));
-
-            matrix<real> inv_parent_gradient_t = inv(parent_gradient);
-
-//            for (auto i=0; i<nodeperelem; ++i) {
-//                for (auto j=0; j<ndim; ++j) {
-//                    for (auto k=0; k<ngauss; ++k) {
-//                        material_gradient(j,k,igauss) += grad_bases(i,k,igauss)*inv_parent_gradient_t(i,j); // CHECK
-//                    }
-//                }
-//            }
-
-            //     F = transpose(x)*material_gradient;
-            //     J = det(F);
-            //     H = J*transpose(inv(F));
-
-            material_gradient = tensor<real,3>(4,2,8);
-            F = tensor<real,3>(2,2,8);
-            H = tensor<real,3>(2,2,8);
-
-
+        std::array<tpair, 1> idx0  = {tpair(0, 0)};
+        std::array<tpair, 1> idx1  = {tpair(1, 0)};
+        std::array<tpair, 2> idx2  = {tpair(0, 0), tpair(1, 1)};
+        for (auto igauss=0;igauss<ngauss;igauss++){
+            tensor<real,2> dX_chi             =  X.contract(grad_bases.chip(igauss,0),idx0);
+            inv_dX_chi.chip(igauss,0)         =  inv(dX_chi);
+            material_gradient.chip(igauss,0)  =  grad_bases.chip(igauss,0).contract(inv_dX_chi.chip(igauss,0),idx1);
+            F.chip(igauss,0)                  =  x.contract(material_gradient.chip(igauss,0),idx0);
+            H.chip(igauss,0)                  =  cofactor(static_cast<tensor<real,2>>(F.chip(igauss,0)));
+            J(igauss)                         =  tensor2scalar(static_cast<tensor<real,0>>
+                                                 (F.chip(igauss,0).contract(H.chip(igauss,0),idx2)/(real)ndim));
+            material_iso_jacobian(igauss)     =  abs(det(dX_chi));
         }
     }
-
 };
 
-
-
-//class Kinematics {
-//public:
-//    matrix<real> F, H, J;
-//    matrix<real> material_gradient;
-//    matrix<real> C, b;
-
-//    Kinematics() = delete;
-
-
-////    Kinematics(const matrix<real> &X, const matrix<real> &x, const matrix<real> &grad_bases) {
-        
-////        auto ngauss = size(grad_bases,1);
-////        auto ndim = size(X,1);
-////        auto nodeperelem = size(X,0);
-
-////        material_gradient = zeros(nodeperelem*ndim,ngauss);
-////        F = zeros(ndim*ndim,ngauss);
-////        H = zeros(ndim*ndim,ngauss);
-////        J = zeros(ngauss);
-
-
-////        for (auto igauss=0; igauss<ngauss; ++igauss) {
-////            auto current_grad_bases = reshape(grad_bases.col(igauss),nodeperelem,ndim);
-////            matrix<real> parent_gradient = transpose(X)*current_grad_bases;
-////            matrix<real> inv_parent_gradient_t = inv(parent_gradient);
-////            matrix<real> current_material_gradient = current_grad_bases*(inv_parent_gradient_t);
-////            material_gradient.col(igauss) = flatten(current_material_gradient);
-////            F.col(igauss) = flatten(transpose(x)*current_material_gradient);
-////            J(igauss) = det(F.col(igauss));
-////            H.col(igauss) = J(igauss)*transpose(inv(reshape(F.col(igauss),ndim,ndim)));
-////        }
-
-////    }
-
-//};
 
 }
 

@@ -30,14 +30,23 @@ HEADERS += \
     examples/examples.h \
     boundary_condition/BoundaryCondition.h \
     constitutive_models/ConstitutiveModels.h \
-    kinematics/Kinematics.h
+    kinematics/Kinematics.h \
+    backends/matrix_backends/backend_tensor.h \
+    backends/matrix_backends/backend_constitutivetensors.h \
+    assembly/Assembly.h \
+    variational_formulations/UPFormulation.h \
+    variational_formulations/DisplacementPhasefieldFormulation.h \
+    kinematics/GradientsPhaseField.h \
+    function_space/FunctionSpace.h \
+    function_space/FunctionalSpacesVariationalFormulations.h
 
 # BUILTIN
 #QMAKE_CXXFLAGS += -std=c++11
 
 
 # EIGEN
-QMAKE_CXXFLAGS += -std=c++11 -DNDEBUG -DHAS_EIGEN -Wno-unused-parameter #-O2
+# QMAKE_CXXFLAGS += -std=c++11 -DNDEBUG -DHAS_EIGEN -Wno-unused-parameter #-O2
+QMAKE_CXXFLAGS += -std=c++11 -DHAS_EIGEN -Wno-unused-parameter #-O2
 #QMAKE_CXXFLAGS += -std=c++11 -O3 -mavx -DHAS_EIGEN #-fopenmp
 #LIBS += -lgomp
 
@@ -50,7 +59,7 @@ QMAKE_CXXFLAGS += -std=c++11 -DNDEBUG -DHAS_EIGEN -Wno-unused-parameter #-O2
 #QMAKE_CXXFLAGS += -std=c++14 -DHAS_BLAZE -O2
 
 
-INCLUDEPATH += /home/roman/Dropbox/Fastor/
+#INCLUDEPATH += /home/roman/Dropbox/Fastor/
 
 #INCLUDEPATH += /media/MATLAB/eigen-3.3.2/
 #INCLUDEPATH += /media/MATLAB/blaze-3.0/
@@ -58,7 +67,8 @@ INCLUDEPATH += /home/roman/Dropbox/Fastor/
 
 
 
-INCLUDEPATH += /home/roman/eigen-3.3.2/
+INCLUDEPATH += /home/rogelio/Documents/eigen3.3.2/
+#INCLUDEPATH += /home/roman/eigen-3.3.2
 #INCLUDEPATH += /home/roman/blaze/
 #INCLUDEPATH += /home/roman/armadillo/include/
 
